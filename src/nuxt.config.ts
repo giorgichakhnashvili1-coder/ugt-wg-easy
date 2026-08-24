@@ -144,6 +144,11 @@ export default defineNuxtConfig({
         name: 'Galego',
       },
       {
+        code: 'ka',
+        language: 'ka-GE',
+        name: 'ქართული',
+      },
+      {
         code: 'vi',
         language: 'vi-VN',
         name: 'Tiếng Việt',

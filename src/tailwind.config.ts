@@ -14,6 +14,13 @@ export default {
       xl: '1280px',
       '2xl': '1536px',
     },
+    extend: {
+      colors: {
+        red: {
+          800: '#005ec9',
+        },
+      },
+    },
   },
   plugins: [tailwindForms],
 } satisfies Config;
