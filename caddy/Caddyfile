@@ -1,0 +1,11 @@
+{
+        # setup your email address
+        email chaxnashvilig@gmail.com
+}
+
+wg-easy.example.com {
+        # since the container will share the network with wg-easy
+        # we can use the proper container name
+        reverse_proxy wg-easy:80
+        tls internal
+}
