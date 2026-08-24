@@ -9,7 +9,7 @@ services:
     #  - HOST=0.0.0.0
     #  - INSECURE=true
 
-    build: https://github.com/giorgichakhnashvili1-coder/ugt-wg-easy.git#master
+    image: ghcr.io/giorgichakhnashvili1-coder/ugt-wg-easy:latest
     container_name: wg-easy
     environment:
       - PORT=80
