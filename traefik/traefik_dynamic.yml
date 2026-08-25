@@ -1,0 +1,27 @@
+http:
+  middlewares:
+    basicAuth:
+      basicAuth:
+        users:  #admin:password123
+          - "admin:$apr1$prWBo65h$u26EZ5BrghLgNeE3lCRTz/"
+    compress:
+      compress: {}
+    hsts:
+      headers:
+        stsSeconds: 2592000
+
+  routers:
+    api:
+      rule: Host(`traefik.example.com`)
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - basicAuth
+      service: api@internal
+
+tls:
+  options:
+    default:
+      sniStrict: false
