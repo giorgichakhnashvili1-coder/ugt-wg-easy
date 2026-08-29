@@ -1,0 +1,1 @@
+ALTER TABLE `general_table` ADD `cert_mode` text;

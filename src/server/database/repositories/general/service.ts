@@ -42,10 +42,37 @@ function createPreparedStatement(db: DBType) {
         },
       })
       .prepare(),
+    getHostnameSettings: db.query.general
+      .findFirst({
+        columns: {
+          adminHostname: true,
+          serverPublicIp: true,
+          certMode: true,
+        },
+      })
+      .prepare(),
     updateSetupStep: db
       .update(general)
       .set({
         setupStep: sql.placeholder('setupStep') as never as number,
+      })
+      .prepare(),
+    updateAdminHostname: db
+      .update(general)
+      .set({
+        adminHostname: sql.placeholder('adminHostname') as never as string,
+      })
+      .prepare(),
+    updateServerPublicIp: db
+      .update(general)
+      .set({
+        serverPublicIp: sql.placeholder('serverPublicIp') as never as string,
+      })
+      .prepare(),
+    updateCertMode: db
+      .update(general)
+      .set({
+        certMode: sql.placeholder('certMode') as never as 'acme' | 'custom',
       })
       .prepare(),
   };
@@ -130,5 +157,38 @@ export class GeneralService {
     }
 
     return result;
+  }
+
+  /**
+   * @throws
+   */
+  async getHostnameSettings() {
+    const result = await this.#statements.getHostnameSettings.execute();
+
+    if (!result) {
+      throw new Error('General Config not found');
+    }
+
+    return {
+      hostname: result.adminHostname,
+      serverPublicIp: result.serverPublicIp,
+      certMode: result.certMode ?? 'acme',
+    };
+  }
+
+  updateAdminHostname(hostname: string) {
+    return this.#statements.updateAdminHostname.execute({
+      adminHostname: hostname,
+    });
+  }
+
+  updateServerPublicIp(serverPublicIp: string) {
+    return this.#statements.updateServerPublicIp.execute({
+      serverPublicIp,
+    });
+  }
+
+  updateCertMode(certMode: 'acme' | 'custom') {
+    return this.#statements.updateCertMode.execute({ certMode });
   }
 }

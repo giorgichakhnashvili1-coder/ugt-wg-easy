@@ -67,6 +67,14 @@ export const WG_ENV = {
   DISABLE_PASSWORD_AUTH: process.env.DISABLE_PASSWORD_AUTH === 'true',
   /** Proxies allowed to provide forwarded request information */
   TRUSTED_PROXIES: parseTrustedProxies(process.env.TRUSTED_PROXIES),
+  /**
+   * Full path (as seen inside this container) to the Traefik dynamic
+   * config file this app owns, e.g. /etc/traefik/dynamic/wg-easy.yml.
+   * Requires a volume mount shared with Traefik's file provider directory.
+   */
+  TRAEFIK_DYNAMIC_CONFIG_PATH: process.env.TRAEFIK_DYNAMIC_CONFIG_PATH,
+  /** Name of the certResolver configured in Traefik's static config */
+  TRAEFIK_CERT_RESOLVER: process.env.TRAEFIK_CERT_RESOLVER,
 };
 
 if (WG_ENV.OAUTH_PROVIDERS && WG_ENV.OAUTH_PROVIDERS.length > 0) {
