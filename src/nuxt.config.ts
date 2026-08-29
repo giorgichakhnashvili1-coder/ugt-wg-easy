@@ -1,5 +1,31 @@
 import { fileURLToPath } from 'node:url';
 
+// static headers only - these never depend on runtime config, so they're
+// safe to bake in at build time via routeRules. HSTS is NOT here: whether
+// this instance is HTTP-only (INSECURE env var) is a runtime deployment
+// choice, and nuxt.config.ts only ever runs once during `nuxt build` - a
+// process.env read here would freeze in whatever was true at build time,
+// not the container's actual runtime environment. HSTS is set instead in
+// server/plugins/securityHeaders.ts, which runs on every request.
+const securityHeaders = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy':
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'X-Permitted-Cross-Domain-Policies': 'none',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  // no external scripts/styles/fonts are loaded anywhere in this app, so
+  // default-src 'self' is safe; 'unsafe-inline' is kept for script/style
+  // since Nuxt's SSR hydration payload and some Vue-managed inline styles
+  // rely on it - COEP is intentionally not set here, it mainly protects
+  // features (SharedArrayBuffer) this app doesn't use, and is the header
+  // most likely to silently break an unrelated future integration
+  'Content-Security-Policy':
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+};
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-19',
@@ -21,6 +47,9 @@ export default defineNuxtConfig({
     storageKey: 'theme',
   },
   css: ['~/app.css'],
+  routeRules: {
+    '/**': { headers: securityHeaders },
+  },
   i18n: {
     // https://i18n.nuxtjs.org/docs/guide/server-side-translations
     experimental: {
