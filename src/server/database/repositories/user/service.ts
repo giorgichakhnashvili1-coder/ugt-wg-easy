@@ -41,7 +41,8 @@ type LoginWithOAuthResult =
         | 'USER_DISABLED'
         | 'USER_ALREADY_LINKED'
         | 'UNEXPECTED_ERROR'
-        | 'AUTO_REGISTER_DISABLED';
+        | 'AUTO_REGISTER_DISABLED'
+        | 'EMAIL_ALREADY_REGISTERED';
     }
   | {
       success: false;
@@ -346,32 +347,14 @@ export class UserService {
         .execute();
 
       if (userByEmail) {
-        if (!userByEmail.enabled) {
-          return { success: false, error: 'USER_DISABLED' };
-        }
-        if (userByEmail.oauthProvider && userByEmail.oauthId) {
-          return {
-            success: false,
-            error: 'USER_ALREADY_LINKED',
-          };
-        }
-
-        await tx
-          .update(user)
-          .set({ oauthProvider: provider, oauthId: oauthId })
-          .where(eq(user.id, userByEmail.id))
-          .execute();
-
-        if (userByEmail.totpVerified) {
-          return {
-            success: false,
-            error: 'TOTP_REQUIRED',
-            userId: userByEmail.id,
-          };
-        }
-
-        // TODO: return updated user
-        return { success: true, user: userByEmail };
+        // never silently link an OAuth identity to an existing account just
+        // because the email matches - the app never verifies that a user
+        // actually owns the email on their own profile (see /api/me), so
+        // this would otherwise let anyone who can get *any* enabled OAuth
+        // provider to assert that email take over the matching account.
+        // Linking must go through the authenticated, explicit
+        // /api/auth/[provider]/link.get.ts flow instead.
+        return { success: false, error: 'EMAIL_ALREADY_REGISTERED' };
       }
 
       if (!WG_ENV.OAUTH_AUTO_REGISTER) {

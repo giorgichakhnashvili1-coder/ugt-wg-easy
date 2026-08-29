@@ -1,5 +1,6 @@
 import { createDebug } from 'obug';
-import { isIPv6 } from 'is-ip';
+import { isIP, isIPv6 } from 'is-ip';
+import isCidr from 'is-cidr';
 
 import { exec } from '#server/utils/cmd';
 import type { ClientType } from '#db/repositories/client/types';
@@ -128,6 +129,18 @@ function parseFirewallEntry(entry: string): ParsedEntry {
 }
 
 /**
+ * Confirms a parsed destination is actually an IP or CIDR before it's ever
+ * interpolated into a shell command. This is a defense-in-depth backstop -
+ * schema validation should already guarantee this, but firewall rules are
+ * rebuilt from whatever is already in the database (including rows written
+ * before stricter validation existed), so this check runs every time rules
+ * are applied, not just at write time.
+ */
+function isValidFirewallDestination(ip: string): boolean {
+  return isIP(ip) || isCidr(ip) !== 0;
+}
+
+/**
  * Generate iptables rule arguments for a single firewall entry
  */
 function generateRuleArgs(
@@ -221,6 +234,14 @@ export const firewall = {
 
     for (const ipEntry of effectiveIps) {
       const parsed = parseFirewallEntry(ipEntry);
+
+      if (!isValidFirewallDestination(parsed.ip)) {
+        FW_DEBUG(
+          `Skipping invalid firewall destination "${parsed.ip}" for client ${client.name} (${client.id})`
+        );
+        continue;
+      }
+
       const baseIp = parsed.ip.split('/')[0] ?? parsed.ip; // Handle CIDR by checking base IP
       const destIsIpv6 = isIPv6(baseIp);
 

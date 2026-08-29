@@ -28,11 +28,14 @@ export async function useWGSession(event: H3Event, rememberMe = false) {
   return useSession<WGSession>(event, {
     password: sessionConfig.sessionPassword,
     name,
-    // TODO: add session expiration
-    // maxAge: undefined
+    // enforces actual server-side expiry (both for the sealed session
+    // itself and h3's own createdAt check) - without this, a captured
+    // session cookie remained valid forever, regardless of this value
+    maxAge: sessionConfig.sessionTimeout,
     cookie: {
       maxAge: rememberMe ? sessionConfig.sessionTimeout : undefined,
       secure: !WG_ENV.INSECURE,
+      sameSite: 'lax',
     },
   });
 }
@@ -42,8 +45,10 @@ export async function getWGSession(event: H3Event) {
   return getSession<WGSession>(event, {
     password: sessionConfig.sessionPassword,
     name,
+    maxAge: sessionConfig.sessionTimeout,
     cookie: {
       secure: !WG_ENV.INSECURE,
+      sameSite: 'lax',
     },
   });
 }

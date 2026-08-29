@@ -17,12 +17,25 @@ const metricsPassword = z
   .pipe(safeStringRefine)
   .nullable();
 
-export const GeneralUpdateSchema = z.object({
-  sessionTimeout: sessionTimeout,
-  metricsPrometheus: metricsEnabled,
-  metricsJson: metricsEnabled,
-  metricsPassword: metricsPassword,
-});
+export const GeneralUpdateSchema = z
+  .object({
+    sessionTimeout: sessionTimeout,
+    metricsPrometheus: metricsEnabled,
+    metricsJson: metricsEnabled,
+    metricsPassword: metricsPassword,
+  })
+  // metrics expose client names, internal VPN addresses, and public
+  // endpoints - enabling either output without a password would make that
+  // public to anyone who can reach the port
+  .refine(
+    (data) =>
+      !(data.metricsPrometheus || data.metricsJson) ||
+      data.metricsPassword !== null,
+    {
+      message: t('zod.general.metricsPasswordRequired'),
+      path: ['metricsPassword'],
+    }
+  );
 
 export type GeneralUpdateType = z.infer<typeof GeneralUpdateSchema>;
 

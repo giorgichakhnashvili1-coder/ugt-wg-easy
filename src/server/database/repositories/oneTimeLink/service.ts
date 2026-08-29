@@ -1,5 +1,6 @@
+import { randomBytes } from 'node:crypto';
+
 import { eq, sql } from 'drizzle-orm';
-import CRC32 from 'crc-32';
 
 import { oneTimeLink } from './schema';
 
@@ -22,6 +23,10 @@ function createPreparedStatement(db: DBType) {
       .onConflictDoUpdate({
         target: oneTimeLink.id,
         set: {
+          // regenerating for a client that already has a row must actually
+          // rotate the token, not just extend the old one's expiry -
+          // otherwise "regenerate" never revokes a previously issued link
+          oneTimeLink: sql.placeholder('oneTimeLink') as never as string,
           expiresAt: sql.placeholder('expiresAt') as never as string,
         },
       })
@@ -55,12 +60,8 @@ export class OneTimeLinkService {
   }
 
   generate(id: ID) {
-    // SECURITY
-    // This is known to be vulnerable to brute force attacks
-    // Mitigations: Small Window, One Time Use
-    // Making it longer defeats the whole purpose
-    const key = `${id}-${Math.floor(Math.random() * 1000)}`;
-    const oneTimeLink = Math.abs(CRC32.str(key)).toString(16);
+    // 256 bits from a CSPRNG - unguessable within the expiry window
+    const oneTimeLink = randomBytes(32).toString('base64url');
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     return this.#statements.create.execute({ id, oneTimeLink, expiresAt });

@@ -112,8 +112,20 @@ export const AddressSchema = z
 
 export const DnsSchema = z.array(AddressSchema, { message: t('zod.dns') });
 
+// AllowedIPs is WireGuard's cryptokey routing table - it must always be an IP
+// or CIDR, never arbitrary text. This also feeds directly into iptables rule
+// generation (see firewall.ts), so a non-IP value here is a command
+// injection risk, not just a data-quality one.
+export const AllowedIpEntrySchema = z
+  .string({ message: t('zod.allowedIps') })
+  .pipe(safeStringRefine)
+  .pipe(controlStringRefine)
+  .refine((entry) => isIP(entry) || isCidr(entry) !== 0, {
+    message: t('zod.allowedIps'),
+  });
+
 export const AllowedIpsSchema = z
-  .array(AddressSchema, { message: t('zod.allowedIps') })
+  .array(AllowedIpEntrySchema, { message: t('zod.allowedIps') })
   .min(1, { message: t('zod.allowedIps') });
 
 // Validation for firewall IP entries

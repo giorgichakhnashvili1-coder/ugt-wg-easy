@@ -6,7 +6,12 @@ import { z } from 'zod';
 import Database from '#server/utils/Database';
 import { defineSetupEventHandler } from '#server/utils/handler';
 import { nextIPFromUsedAddresses } from '#server/utils/ip';
-import { FileSchema, validateZod } from '#server/utils/types';
+import {
+  FileSchema,
+  controlStringRefine,
+  safeStringRefine,
+  validateZod,
+} from '#server/utils/types';
 
 export default defineSetupEventHandler('migrate', async ({ event }) => {
   const { file } = await readValidatedBody(
@@ -14,23 +19,32 @@ export default defineSetupEventHandler('migrate', async ({ event }) => {
     validateZod(FileSchema, event)
   );
 
+  // every field below ends up written verbatim into wg0.conf (server keys,
+  // client keys/name), so control characters (newlines especially) must be
+  // rejected the same way normal client creation already rejects them -
+  // otherwise a crafted migration file can inject arbitrary [Peer] stanzas
+  const sanitizedString = z
+    .string()
+    .pipe(safeStringRefine)
+    .pipe(controlStringRefine);
+
   const schema = z.object({
     server: z.object({
-      privateKey: z.string(),
-      publicKey: z.string(),
+      privateKey: sanitizedString,
+      publicKey: sanitizedString,
       // only used for cidr
-      address: z.string(),
+      address: sanitizedString,
     }),
     clients: z.record(
       z.string(),
       z.object({
         // not used, breaks compatibility with older versions
         id: z.string().optional(),
-        name: z.string(),
-        address: z.string(),
-        privateKey: z.string(),
-        publicKey: z.string(),
-        preSharedKey: z.string(),
+        name: sanitizedString,
+        address: sanitizedString,
+        privateKey: sanitizedString,
+        publicKey: sanitizedString,
+        preSharedKey: sanitizedString,
         createdAt: z.string(),
         updatedAt: z.string(),
         enabled: z.boolean(),

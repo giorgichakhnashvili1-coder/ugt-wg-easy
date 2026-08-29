@@ -6,6 +6,7 @@ import type { client } from './schema';
 
 import {
   AddressSchema,
+  AllowedIpEntrySchema,
   AllowedIpsSchema,
   DnsSchema,
   EnabledSchema,
@@ -64,7 +65,10 @@ const address6 = z
   .pipe(controlStringRefine)
   .refine((v) => isIPv6(v));
 
-const serverAllowedIps = z.array(AddressSchema, {
+// same rationale as AllowedIpEntrySchema itself: this is spliced directly
+// into the server's own [Peer] AllowedIPs line (wgHelper.ts), so it must be
+// a real IP/CIDR - not just injection-safe text
+const serverAllowedIps = z.array(AllowedIpEntrySchema, {
   message: t('zod.client.serverAllowedIps'),
 });
 

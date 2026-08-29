@@ -54,7 +54,7 @@
             </FormHeading>
             <FormNullArrayField v-model="data.allowedIps" name="allowedIps" />
           </FormGroup>
-          <FormGroup>
+          <FormGroup v-if="isAdmin">
             <FormHeading :description="$t('client.serverAllowedIpsDesc')">
               {{ $t('client.serverAllowedIps') }}
             </FormHeading>
@@ -211,6 +211,12 @@
 
 <script lang="ts" setup>
 const globalStore = useGlobalStore();
+const authStore = useAuthStore();
+
+const isAdmin = computed(
+  () =>
+    !!authStore.userData && hasPermissions(authStore.userData, 'admin', 'any')
+);
 
 const route = useRoute();
 const id = route.params.id as string;

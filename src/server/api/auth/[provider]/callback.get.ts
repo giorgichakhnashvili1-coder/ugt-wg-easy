@@ -72,6 +72,12 @@ export default defineEventHandler(async (event) => {
           statusCode: 401,
           statusMessage: 'Auto registration is disabled',
         });
+      case 'EMAIL_ALREADY_REGISTERED':
+        throw createError({
+          statusCode: 401,
+          statusMessage:
+            'An account with this email already exists - log in with your password and link this provider from your account settings instead',
+        });
       case 'UNEXPECTED_ERROR':
         throw createError({
           statusCode: 500,
