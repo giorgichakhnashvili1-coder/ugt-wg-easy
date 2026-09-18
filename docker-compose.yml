@@ -3,23 +3,31 @@ volumes:
 
 services:
   wg-easy:
-    #environment:
-    #  Optional:
-    #  - PORT=51821
-    #  - HOST=0.0.0.0
-    #  - INSECURE=true
+    environment:
+      - TRAEFIK_DYNAMIC_CONFIG_PATH=/etc/traefik/dynamic/wg-easy.yml
+      - TRAEFIK_CERT_RESOLVER=letsencrypt
 
     image: ghcr.io/giorgichakhnashvili1-coder/ugt-wg-easy:latest
     container_name: wg-easy
-    environment:
-      - PORT=80
+#    environment:
+#     - PORT=51821
     networks:
       wg:
         ipv4_address: 10.42.42.42
-      caddy: 
+      traefik: {}
+#      caddy:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wg-easy.rule=Host(`wg-easy.example.com`) || Host(`10.132.3.188`)"
+      - "traefik.http.routers.wg-easy.entrypoints=web,websecure"
+      - "traefik.http.routers.wg-easy.tls=true"
+      - "traefik.http.routers.wg-easy.service=wg-easy"
+      - "traefik.http.services.wg-easy.loadbalancer.server.port=51821"
+      - "traefik.docker.network=traefik"
     volumes:
       - etc_wireguard:/etc/wireguard
       - /lib/modules:/lib/modules:ro
+      - /etc/docker/containers/traefik/dynamic:/etc/traefik/dynamic
     ports:
       - "51820:51820/udp"
     restart: unless-stopped
@@ -39,5 +47,7 @@ networks:
       driver: default
       config:
         - subnet: 10.42.42.0/24
-  caddy:
+#  caddy:
+#    external: true
+  traefik:
     external: true
