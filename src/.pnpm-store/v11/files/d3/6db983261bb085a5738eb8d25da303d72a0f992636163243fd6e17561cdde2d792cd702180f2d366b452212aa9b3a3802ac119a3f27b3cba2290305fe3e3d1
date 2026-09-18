@@ -1,0 +1,10 @@
+import { TestUserConfig } from "vitest/config";
+//#region src/module.d.ts
+interface NuxtVitestOptions {
+  startOnBoot?: boolean;
+  logToConsole?: boolean;
+  vitestConfig?: TestUserConfig;
+}
+declare const _default: import("@nuxt/schema").NuxtModule<NuxtVitestOptions, NuxtVitestOptions, false>;
+//#endregion
+export { NuxtVitestOptions, _default as default };

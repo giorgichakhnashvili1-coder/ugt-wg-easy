@@ -1,0 +1,35 @@
+import { O as GotoOptions, _ as TestHooks, v as TestOptions$1 } from "./e2e-BcqRLCEP.mjs";
+import { expect } from "@playwright/test";
+import { Response } from "playwright-core";
+//#region src/playwright.d.ts
+type ConfigOptions = {
+  nuxt: Partial<TestOptions$1> | undefined;
+  defaults: {
+    nuxt: Partial<TestOptions$1> | undefined;
+  };
+};
+type WorkerOptions = {
+  _nuxtHooks: TestHooks;
+};
+type TestOptions = {
+  goto: (url: string, options?: GotoOptions) => Promise<Response | null>;
+};
+/**
+ * Use a preconfigured Nuxt fixture.
+ *
+ * You can pass a `nuxt: {}` object in your device configuration, in the `use` key of your config file,
+ * or use the following syntax within your test file to configure your Nuxt fixture:
+ *
+  ```ts
+  test.use({
+    nuxt: {
+      rootDir: fileURLToPath(new URL('.', import.meta.url)),
+    }
+  })
+  ```
+ *
+ * In `playwright.config.ts` you can pass `defaults: { nuxt: {} }` object for merging with test.use nuxt options
+ */
+declare const test: import("@playwright/test").TestType<import("@playwright/test").PlaywrightTestArgs & import("@playwright/test").PlaywrightTestOptions & TestOptions, import("@playwright/test").PlaywrightWorkerArgs & import("@playwright/test").PlaywrightWorkerOptions & WorkerOptions & ConfigOptions>;
+//#endregion
+export { ConfigOptions, expect, test };

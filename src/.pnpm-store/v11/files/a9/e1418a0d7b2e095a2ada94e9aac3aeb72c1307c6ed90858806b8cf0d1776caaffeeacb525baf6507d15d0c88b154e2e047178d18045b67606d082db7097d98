@@ -1,0 +1,187 @@
+import { resolve } from "node:path";
+import { defu as defu$1 } from "defu";
+import { joinURL, withTrailingSlash } from "ufo";
+import { isBun, isWindows } from "std-env";
+import { x } from "tinyexec";
+import { getRandomPort, waitForPort } from "get-port-please";
+import { createFetch, fetch } from "ofetch";
+import { resolve as resolve$1 } from "pathe";
+//#region src/e2e/context.ts
+let currentContext;
+function createTestContext(options) {
+	const _options = defu$1(options, {
+		testDir: resolve(process.cwd(), "test"),
+		fixture: "fixture",
+		configFile: "nuxt.config",
+		setupTimeout: isWindows ? 24e4 : 12e4,
+		teardownTimeout: isWindows ? 6e4 : 3e4,
+		serverStartTimeout: isWindows ? 12e4 : 6e4,
+		dev: !!JSON.parse(process.env.NUXT_TEST_DEV || "false"),
+		logLevel: 1,
+		server: true,
+		build: options.browser !== false || options.server !== false,
+		env: {},
+		nuxtConfig: { compatibilityDate: "2024-04-03" },
+		browserOptions: { type: "chromium" },
+		captureServerLogs: true
+	});
+	if (process.env.NUXT_TEST_LOG_LEVEL) _options.logLevel = Number(process.env.NUXT_TEST_LOG_LEVEL);
+	if (!_options.dev) _options.env.NODE_ENV ||= "production";
+	if (_options.host) {
+		_options.build = false;
+		_options.server = false;
+	}
+	if (process.env.VITEST === "true") _options.runner ||= "vitest";
+	else if (process.env.JEST_WORKER_ID) _options.runner ||= "jest";
+	else if (isBun) _options.runner ||= "bun";
+	return setTestContext({
+		options: _options,
+		url: withTrailingSlash(_options.host),
+		serverLogs: []
+	});
+}
+function useTestContext() {
+	recoverContextFromEnv();
+	if (!currentContext) throw new Error("No context is available. (Forgot calling setup or createContext?)");
+	return currentContext;
+}
+function setTestContext(context) {
+	currentContext = context;
+	return currentContext;
+}
+function isDev() {
+	return useTestContext().options.dev;
+}
+function recoverContextFromEnv() {
+	if (!currentContext && process.env.NUXT_TEST_CONTEXT) setTestContext(JSON.parse(process.env.NUXT_TEST_CONTEXT || "{}"));
+}
+function exposeContextToEnv() {
+	const { options, browser, url } = currentContext;
+	process.env.NUXT_TEST_CONTEXT = JSON.stringify({
+		options,
+		browser,
+		url
+	});
+}
+//#endregion
+//#region src/e2e/server.ts
+const globalFetch = globalThis.fetch || fetch;
+async function startServer(options = {}) {
+	const ctx = useTestContext();
+	await stopServer();
+	ctx.serverLogs = [];
+	const host = "127.0.0.1";
+	const port = ctx.options.port || await getRandomPort(host);
+	ctx.url = `http://${host}:${port}/`;
+	const capture = ctx.options.captureServerLogs !== false;
+	const stdio = capture ? "pipe" : "inherit";
+	const logLevel = String(options.logLevel ?? ctx.options.logLevel);
+	if (ctx.options.dev) ctx.serverProcess = x("nuxi", ["_dev"], {
+		throwOnError: true,
+		nodeOptions: {
+			cwd: ctx.nuxt.options.rootDir,
+			stdio,
+			env: {
+				...process.env,
+				_PORT: String(port),
+				PORT: String(port),
+				HOST: host,
+				NODE_ENV: "development",
+				CONSOLA_LEVEL: logLevel,
+				...ctx.options.env,
+				...options.env
+			}
+		}
+	});
+	else ctx.serverProcess = x("node", [resolve$1(ctx.nuxt ? ctx.nuxt.options.nitro.output.dir : ctx.options.nuxtConfig.nitro.output.dir, "server/index.mjs")], {
+		throwOnError: true,
+		nodeOptions: {
+			stdio,
+			env: {
+				...process.env,
+				PORT: String(port),
+				HOST: host,
+				NODE_ENV: "test",
+				CONSOLA_LEVEL: logLevel,
+				...ctx.options.env,
+				...options.env
+			}
+		}
+	});
+	if (capture) (async () => {
+		for await (const line of ctx.serverProcess) ctx.serverLogs.push(line);
+	})().catch(() => {});
+	await waitForServer({
+		host,
+		port,
+		dev: ctx.options.dev
+	});
+}
+async function waitForServer({ host, port, dev }) {
+	const ctx = useTestContext();
+	const baseURL = ctx.nuxt?.options.app.baseURL ?? "/";
+	const deadline = Date.now() + ctx.options.serverStartTimeout;
+	await waitForPort(port, {
+		retries: 8,
+		host
+	}).catch(() => {});
+	let lastError;
+	while (Date.now() < deadline) {
+		if (ctx.serverProcess && (ctx.serverProcess.killed || ctx.serverProcess.exitCode != null)) throw new Error(`Server process exited before becoming ready (exit code: ${ctx.serverProcess.exitCode ?? "unknown"})`);
+		try {
+			const res = await globalFetch(joinURL(ctx.url, baseURL), { signal: AbortSignal.timeout(1e4) });
+			if (dev && res.status === 503) lastError = /* @__PURE__ */ new Error(`Server responded with ${res.status} ${res.statusText}`);
+			else if (dev && (await res.text()).includes("__NUXT_LOADING__")) lastError = /* @__PURE__ */ new Error("Dev server is still starting up");
+			else return;
+		} catch (e) {
+			lastError = e;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	await stopServer();
+	throw lastError instanceof Error ? lastError : /* @__PURE__ */ new Error(`Timeout (${ctx.options.serverStartTimeout}ms) waiting for ${dev ? "dev" : "built"} server to become ready at ${ctx.url}`);
+}
+async function stopServer() {
+	const ctx = useTestContext();
+	const proc = ctx.serverProcess;
+	if (!proc) return;
+	ctx.serverProcess = void 0;
+	const exited = Promise.resolve(proc).then(() => {}, () => {});
+	const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+	proc.kill();
+	await Promise.race([exited, sleep(5e3)]);
+	if (proc.exitCode == null) {
+		proc.kill("SIGKILL");
+		await Promise.race([exited, sleep(5e3)]);
+	}
+}
+/**
+* Returns the lines captured from the server subprocess's stdout/stderr since
+* the last `startServer()` call (or `clearServerLogs()`).
+* Only populated when `captureServerLogs` is `true` (the default).
+*/
+function getServerLogs() {
+	return useTestContext().serverLogs;
+}
+/**
+* Clears the captured server log lines. Useful between requests when you want
+* to assert only on the logs produced by a specific operation.
+*/
+function clearServerLogs() {
+	useTestContext().serverLogs = [];
+}
+function fetch$1(path, options) {
+	return globalFetch(url(path), options);
+}
+const _$fetch = createFetch({ fetch: globalFetch });
+const $fetch = function $fetch(path, options) {
+	return _$fetch(url(path), options);
+};
+function url(path) {
+	const ctx = useTestContext();
+	if (!ctx.url) throw new Error("url is not available (is server option enabled?)");
+	if (path.startsWith(ctx.url)) return path;
+	return joinURL(ctx.url, path);
+}
+//#endregion
+export { startServer as a, createTestContext as c, recoverContextFromEnv as d, setTestContext as f, getServerLogs as i, exposeContextToEnv as l, clearServerLogs as n, stopServer as o, useTestContext as p, fetch$1 as r, url as s, $fetch as t, isDev as u };

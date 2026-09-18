@@ -1,0 +1,42 @@
+//#region index.d.ts
+type Network = string;
+type Networks = Network | ReadonlyArray<Network>;
+type ValidIpVersion = 4 | 6;
+type ParsedCidr = {
+  cidr: string;
+  ip: string;
+  version: ValidIpVersion;
+  prefix: string;
+  prefixPresent: boolean;
+  start: bigint;
+  end: bigint;
+};
+type NormalizeOpts = {
+  compress?: boolean;
+  hexify?: boolean;
+};
+/** Returns a string or array (depending on input) with a normalized representation. Will not include a prefix on single IPs. Will set network address to the start of the network. */
+declare function normalizeCidr<T extends Networks>(cidr: T, opts?: NormalizeOpts): T;
+/** Returns a `parsed` Object which is used internally by this module. It can be used to test whether the passed network is IPv4 or IPv6 or to work with the BigInts directly. */
+declare function parseCidr(str: Network): ParsedCidr;
+/** Returns an array of merged networks */
+declare function mergeCidr(nets: Networks): Array<Network>;
+/** Returns an array of merged remaining networks of the subtraction of `excludeNetworks` from `baseNetworks`. */
+declare function excludeCidr(base: Networks, excl: Networks): Array<Network>;
+/** Returns a generator for individual IPs contained in the networks. */
+declare function expandCidr(nets: Networks): Generator<Network>;
+/** Returns a boolean that indicates if `networksA` overlap (intersect) with `networksB`. */
+declare function overlapCidr(a: Networks, b: Networks): boolean;
+/** Returns a boolean that indicates whether `networksA` fully contain all `networksB`. */
+declare function containsCidr(a: Networks, b: Networks): boolean;
+declare const _default: {
+  mergeCidr: typeof mergeCidr;
+  excludeCidr: typeof excludeCidr;
+  expandCidr: typeof expandCidr;
+  overlapCidr: typeof overlapCidr;
+  containsCidr: typeof containsCidr;
+  normalizeCidr: typeof normalizeCidr;
+  parseCidr: typeof parseCidr;
+};
+//#endregion
+export { containsCidr, _default as default, excludeCidr, expandCidr, mergeCidr, normalizeCidr, overlapCidr, parseCidr };

@@ -1,0 +1,62 @@
+import { DotenvOptions } from "c12";
+import { Nuxt, NuxtConfig, ViteConfig } from "@nuxt/schema";
+import { InlineConfig } from "vitest/node";
+import { TestProjectInlineConfiguration } from "vitest/config";
+import { UserConfig, UserConfigFnPromise } from "vite";
+//#region src/config.d.ts
+interface GetVitestConfigOptions {
+  nuxt: Nuxt;
+  viteConfig: ViteConfig;
+}
+interface LoadNuxtOptions {
+  dotenv?: Partial<DotenvOptions>;
+  overrides?: Partial<NuxtConfig>;
+}
+declare function getVitestConfigFromNuxt(options?: GetVitestConfigOptions, loadNuxtOptions?: LoadNuxtOptions): Promise<UserConfig & {
+  test: InlineConfig;
+}>;
+declare function defineVitestProject(config: TestProjectInlineConfiguration): Promise<TestProjectInlineConfiguration>;
+declare function defineVitestConfig(config?: UserConfig & {
+  test?: InlineConfig;
+}): UserConfigFnPromise;
+interface NuxtEnvironmentOptions {
+  rootDir?: string;
+  /**
+   * The starting URL for your Nuxt window environment
+   * @default 'http://localhost:3000'
+   */
+  url?: string;
+  /**
+   * You can define how environment options are read when loading the Nuxt configuration.
+   */
+  dotenv?: Partial<DotenvOptions>;
+  /**
+   * Configuration that will override the values in your `nuxt.config` file.
+   */
+  overrides?: NuxtConfig;
+  /**
+   * The id of the root element to which the app should be mounted. Takes precedence over the id
+   * resolved from your Nuxt config, falling back to `'nuxt-test'` when neither is set.
+   * @deprecated Set `overrides.app.rootAttrs.id` (or `app.rootId` in your Nuxt config) instead
+   */
+  rootId?: string;
+  /**
+   * The name of the DOM environment to use.
+   *
+   * It also needs to be installed as a dev dependency in your project.
+   * @default 'happy-dom'
+   */
+  domEnvironment?: 'happy-dom' | 'jsdom';
+  h3Version?: 1 | 2;
+  mock?: {
+    intersectionObserver?: boolean;
+    indexedDb?: boolean;
+  };
+}
+declare module 'vitest/node' {
+  interface EnvironmentOptions {
+    nuxt?: NuxtEnvironmentOptions;
+  }
+}
+//#endregion
+export { NuxtEnvironmentOptions, defineVitestConfig, defineVitestProject, getVitestConfigFromNuxt };
