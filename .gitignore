@@ -3,4 +3,4 @@
 node_modules
 
 docs/site
-docs/.cache
+docs/.cache.pnpm-store/
