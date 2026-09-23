@@ -2,8 +2,8 @@ http:
   middlewares:
     basicAuth:
       basicAuth:
-        users:  #admin:password123(apache md5 hash)
-          - "admin:<htpasswd -nb -m admin password123>"
+        users:  
+          - "<YOUR_USERNAME>:<YOUR_PASSWORD_APACHE_MD5_HASH>"
     compress:
       compress: {}
     hsts:
@@ -12,7 +12,7 @@ http:
 
   routers:
     api:
-      rule: "Host(`traefik.example.com`)"
+      rule: "Host(`<YOUR_DOMAIN_FOR_TRAEFIK>`)"
       entryPoints:
         - web
         - websecure
